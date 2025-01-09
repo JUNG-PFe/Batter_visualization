@@ -403,8 +403,6 @@ if st.session_state.filter_applied:
         line=dict(color="black", width=3)
     )
 
-    st.plotly_chart(fig2, use_container_width=True)
-
     fig2.update_layout(
         width=800,  # 원하는 폭 (px 단위)
         height=800  # 원하는 높이 (px 단위)
