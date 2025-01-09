@@ -60,6 +60,12 @@ def load_data():
 # 데이터 로드
 df = load_data()
 
+st.set_page_config(
+    page_title="23-24 호크아이 데이터 선수간 비교",
+    page_icon="⚾",
+    layout="wide"
+)
+
 # -------------------------------
 # 로그인 여부 확인
 # -------------------------------

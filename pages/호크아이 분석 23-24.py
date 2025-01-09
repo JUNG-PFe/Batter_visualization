@@ -567,7 +567,93 @@ if st.session_state.filter_applied:
                 st.plotly_chart(fig_xy)
             else:
                 st.warning("X-Y 시각화: 선택된 타격 결과에 해당하는 데이터가 없습니다.")
+
+if not filtered_df.empty:
+    filtered_df_1 = filtered_df[filtered_df['타격결과'].isin(valid_hit_results)].copy()
+
+    
+    # 선택된 지표에 따라 필터링된 데이터 사용
+    selected_result = st.selectbox(
+        "타격 결과 선택",
+        ["전체"] + valid_hit_results,
+        index=0
+    )
+
+    # 선택된 결과에 따라 필터링
+    if selected_result != "전체":
+        filtered_df_2d = filtered_df_1[filtered_df_1['타격결과'] == selected_result]
+    else:
+        filtered_df_2d = filtered_df_1
+
+    # 데이터가 비어 있는 경우 경고 메시지 출력
+    if filtered_df_2d.empty:
+        st.warning("선택된 타격 결과에 해당하는 데이터가 없습니다.")
+    else:
+        # 산점도 생성
+        fig_2d = px.scatter(
+            filtered_df_2d,
+            x='ExitSpeed',  # X축
+            y='Angle',      # Y축
+            color='타격결과',  # 색상으로 타격 결과 구분
+            category_orders={"타격결과": valid_hit_results},  # Plotly에서 명시적 정렬
+            title=f"2D 산점도: 타구 속도와 각도 ({selected_result})",
+            labels={
+                'ExitSpeed': '타구 속도',
+                'Angle': '타구 각도'
+            },
+            opacity=0.8  # 투명도 설정
+        )
+
+        fig_2d.update_traces(marker=dict(size=10)) 
+
+        # 레이아웃 설정
+        fig_2d.update_layout(
+            xaxis=dict(
+                title='타구 속도',
+                title_font=dict(size=14, color='black'),
+                showline=True,
+                linewidth=2,
+                linecolor='black',
+                range=[20, 190]
+            ),
+            yaxis=dict(
+                title='타구 각도',
+                title_font=dict(size=14, color='black'),
+                showline=True,
+                linewidth=2,
+                linecolor='black',
+                range=[-50, 90]
+            )
+        )
+
+        for y_value in [0, 10, 20, 28]:
+            fig_2d.add_shape(
+                type="line",
+                x0=fig_2d.layout.xaxis.range[0] if fig_2d.layout.xaxis.range else filtered_df_2d['PTS_ExitSpeed'].min(),  # X축 시작
+                x1=fig_2d.layout.xaxis.range[1] if fig_2d.layout.xaxis.range else filtered_df_2d['PTS_ExitSpeed'].max(),  # X축 끝
+                y0=y_value,  # Y축 값
+                y1=y_value,  # 동일한 Y축 값
+                line=dict(color="black", width=2)  # 선 색상과 두께
+            )
+        for x_value in [140, 160]:
+            fig_2d.add_shape(
+                type="line",
+                x0=x_value,  # X축 값
+                x1=x_value,  # 동일한 X축 값
+                y0=fig_2d.layout.yaxis.range[0] if fig_2d.layout.yaxis.range else filtered_df_2d['PTS_Angle'].min(),  # Y축 시작
+                y1=fig_2d.layout.yaxis.range[1] if fig_2d.layout.yaxis.range else filtered_df_2d['PTS_Angle'].max(),  # Y축 끝
+                line=dict(color="black", width=2)  # 선 색상과 두께
+            )
+
         
+        fig_2d.update_layout(
+            width=200,  # 원하는 폭 (px 단위)
+            height=700  # 원하는 높이 (px 단위)
+        )
+
+        # Streamlit에서 그래프 표시
+        st.plotly_chart(fig_2d, use_container_width=True)
+            
 
 
     if not filtered_df.empty:
