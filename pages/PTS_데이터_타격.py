@@ -197,37 +197,32 @@ if st.session_state.filter_applied:
     if selected_hit_results and "전체" not in selected_hit_results:
         filtered_df = filtered_df[filtered_df['Result'].isin(selected_hit_results)]
 
-    # PTS_location_X / PTS_location_Z 가공
     filtered_df['PTS_location_X'] = pd.to_numeric(filtered_df['PTS_location_X'], errors='coerce')
     filtered_df['PTS_location_Z'] = pd.to_numeric(filtered_df['PTS_location_Z'], errors='coerce')
     filtered_df.dropna(subset=['PTS_location_X', 'PTS_location_Z'], inplace=True)
 
+    # 스트라이크 존 경계 설정
     strike_zone_x_edges = np.linspace(-23, 23, 4)
     strike_zone_z_edges = np.linspace(46, 105, 4)
 
+    # 존 설정
     filtered_df['Zone'] = pd.cut(
-        filtered_df['PTS_location_X'], bins=strike_zone_x_edges, labels=[1, 2, 3]
+        filtered_df['PTS_location_X'], bins=strike_zone_x_edges, labels=[3, 2, 1]  # X축 좌→우 순서 변경
     ).astype(str) + pd.cut(
-        filtered_df['PTS_location_Z'], bins=strike_zone_z_edges, labels=[1, 2, 3]
+        filtered_df['PTS_location_Z'], bins=strike_zone_z_edges, labels=[3, 2, 1]  # Y축 낮음→높음 순서 변경
     ).astype(str)
 
-    # '히트' 및 '장타' 변수 생성
-    filtered_df['히트'] = filtered_df['Result'].isin(['안타', '2루타', '3루타', '홈런'])
-    filtered_df['장타'] = filtered_df['Result'].isin(['2루타', '3루타', '홈런'])
-
-    # 사용자 선택 추가
+    # 분석 지표 선택 및 계산
     metric = st.selectbox("분석 지표 선택", ['인플레이 타구', '파울', '스윙중 헛스윙', '히트', '장타', '뜬공', '땅볼'])
     metric_mapping = {'인플레이 타구': 'H', '파울': 'F', '스윙중 헛스윙': 'S'}
     metric = metric_mapping.get(metric, metric)
 
-    # 분석 지표 계산
     if metric in ['H', 'F', 'S']:
         zone_summary = (
             filtered_df.groupby('Zone')['PitchCall']
             .value_counts(normalize=True)
             .unstack(fill_value=0)
         )
-        # 재색인 시 컬럼 존재 여부 확인
         zone_summary = zone_summary.reindex(columns=['F', 'H', 'S'], fill_value=0)
         selected_rate = zone_summary[metric]
     elif metric in ['히트', '장타']:
@@ -238,31 +233,20 @@ if st.session_state.filter_applied:
             .apply(lambda x: (x == metric).mean())
         )
 
-    zone_counts = filtered_df.groupby('Zone')['PitchCall'].size() 
-
-    # Zone별로 몇 개 중 몇 개 계산
-    if metric in ['H', 'F', 'S']:
-        # 'H', 'F', 'S'에 해당하는 PitchCall의 수를 세기
-        zone_success = filtered_df.groupby('Zone')['PitchCall'].apply(lambda x: (x == metric).sum())
-    elif metric in ['히트', '장타']:
-        # '히트' 또는 '장타'의 합계 계산
-        zone_success = filtered_df.groupby('Zone')[metric].sum()
-    else:
-        # 특정 Result 값(파울, 뜬공, 땅볼 등)의 수를 세기
-        zone_success = filtered_df.groupby('Zone')['Result'].apply(lambda x: (x == metric).sum())
+    zone_counts = filtered_df.groupby('Zone')['PitchCall'].size()
+    zone_success = (
+        filtered_df.groupby('Zone')['PitchCall'].apply(lambda x: (x == metric).sum())
+        if metric in ['H', 'F', 'S'] else
+        filtered_df.groupby('Zone')[metric].sum()
+    )
 
     # Zone 값이 누락된 경우 0으로 채우기
-    selected_rate = selected_rate.reindex(
-        ['11', '12', '13', '21', '22', '23', '31', '32', '33'], fill_value=0
-    )
-    zone_counts = zone_counts.reindex(
-        ['11', '12', '13', '21', '22', '23', '31', '32', '33'], fill_value=0
-    )
-    zone_success = zone_success.reindex(
-        ['11', '12', '13', '21', '22', '23', '31', '32', '33'], fill_value=0
-    )
+    zone_labels = ['33', '32', '31', '23', '22', '21', '13', '12', '11']  # 순서 조정
+    selected_rate = selected_rate.reindex(zone_labels, fill_value=0)
+    zone_counts = zone_counts.reindex(zone_labels, fill_value=0)
+    zone_success = zone_success.reindex(zone_labels, fill_value=0)
 
-    # 3x3 행렬로 변환
+    # 3x3 행렬 변환
     zone_matrix = selected_rate.values.reshape(3, 3)
     zone_matrix_percent = (zone_matrix * 100).round(1)
     zone_matrix_counts = zone_counts.values.reshape(3, 3)
@@ -272,26 +256,37 @@ if st.session_state.filter_applied:
     fig = px.imshow(
         zone_matrix,
         labels=dict(x="좌/우", y="높음/낮음", color=f"{metric} 비율 (%)"),
-        x=['좌', '중', '우'],
-        y=['낮음', '중간', '높음'],
-        color_continuous_scale="Reds",  # 색상 배열 수정
+        x=['우', '중', '좌'],  # X축 이름
+        y=['높음', '중간', '낮음'],  # Y축 이름
+        color_continuous_scale="Reds",
         zmin=zone_matrix.min(),
         zmax=zone_matrix.max(),
         text_auto=False
     )
 
-    min_val = np.nanmin(zone_matrix)  # NaN 무시 최소값
-    max_val = np.nanmax(zone_matrix)  # NaN 무시 최대값
-    threshold = min_val + (max_val - min_val) * 0.6  # 80% 기준 값 계산
+    # Y축 순서 명시
+    fig.update_yaxes(
+        categoryarray=['높음', '중간', '낮음'],
+        categoryorder='array'
+    )
 
-    # 셀마다 퍼센트 값과 몇 개 중 몇 개 추가
+    # X축 순서 명시
+    fig.update_xaxes(
+        categoryarray=['우', '중', '좌'],
+        categoryorder='array'
+    )
+
+    # 텍스트 추가
+    min_val = np.nanmin(zone_matrix)
+    max_val = np.nanmax(zone_matrix)
+    threshold = min_val + (max_val - min_val) * 0.6
+
     for i in range(zone_matrix_percent.shape[0]):
         for j in range(zone_matrix_percent.shape[1]):
             success = int(zone_matrix_success[i, j])
             total = int(zone_matrix_counts[i, j])
             percentage = zone_matrix_percent[i, j]
 
-            # 절반 이상이면 흰색, 이하면 검정색
             text_color = "white" if zone_matrix[i, j] > threshold else "black"
 
             fig.add_annotation(
@@ -299,19 +294,19 @@ if st.session_state.filter_applied:
                 x=j,
                 y=i,
                 showarrow=False,
-                font=dict(color=text_color, size=12)  # 글자 색상 동적으로 설정
+                font=dict(color=text_color, size=12)
             )
-            
-    # 레이아웃 업데이트
+
+    # 레이아웃 설정
     fig.update_layout(
         title=f"스트라이크 존별 {metric} 비율_포수시점",
         xaxis_title="좌/우",
         yaxis_title="높음/낮음",
-        xaxis=dict(tickmode='array', tickvals=[0, 1, 2], ticktext=['좌', '중', '우']),
-        yaxis=dict(tickmode='array', tickvals=[0, 1, 2], ticktext=['낮음', '중간', '높음'])
+        width=800,
+        height=800
     )
 
-    # Plotly 그래프를 Streamlit 앱 내에 표시
+    # Streamlit에서 그래프 표시
     st.plotly_chart(fig, use_container_width=True)
 
     

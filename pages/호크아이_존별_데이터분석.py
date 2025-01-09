@@ -211,6 +211,10 @@ if st.session_state.filter_applied:
     filtered_df['PlateLocHeight'] = pd.to_numeric(filtered_df['PlateLocHeight'], errors='coerce') * 100
     filtered_df.dropna(subset=['PlateLocSide', 'PlateLocHeight'], inplace=True)
 
+    # 히트와 장타 정의
+    filtered_df['히트'] = filtered_df['타격결과'].isin(['안타', '2루타', '3루타', '홈런']).astype(int)
+    filtered_df['장타'] = filtered_df['타격결과'].isin(['2루타', '3루타', '홈런']).astype(int)
+
     # 첫 번째 스트라이크 존 시각화
     strike_zone_x_edges = np.linspace(-23, 23, 4)
     strike_zone_z_edges = np.linspace(46, 105, 4)
@@ -221,12 +225,14 @@ if st.session_state.filter_applied:
         filtered_df['PlateLocHeight'], bins=strike_zone_z_edges, labels=[1, 2, 3]
     ).astype(str)
 
-    metric = st.selectbox("첫 번째 분석 지표 선택", ['인플레이 타구', '파울', '스윙중 헛스윙', '히트', '장타', '뜬공', '땅볼'], key='metric_1')
+    metric = st.selectbox("첫 번째 분석 지표 선택", ['히트', '장타', '인플레이 타구', '파울', '스윙중 헛스윙', '뜬공', '땅볼'], key='metric_1')
 
     metric_mapping = {
         '인플레이 타구': 'H',
         '파울': 'F',
-        '스윙중 헛스윙': 'S'
+        '스윙중 헛스윙': 'S',
+        '히트': '히트',
+        '장타': '장타'
     }
     metric = metric_mapping.get(metric, metric)
 
@@ -239,6 +245,10 @@ if st.session_state.filter_applied:
         )
         total_counts = zone_summary.sum(axis=1)
         selected_counts = zone_summary[metric]
+        selected_rate = selected_counts / total_counts
+    elif metric in ['히트', '장타']:
+        total_counts = filtered_df.groupby('Zone').size()
+        selected_counts = filtered_df.groupby('Zone')[metric].sum()
         selected_rate = selected_counts / total_counts
     else:
         total_counts = filtered_df.groupby('Zone').size()
@@ -261,16 +271,28 @@ if st.session_state.filter_applied:
     max_val = zone_matrix.max()
     threshold = min_val + (max_val - min_val) * 0.6
 
+    # Y축에 맞게 데이터를 뒤집기
+    zone_matrix = zone_matrix[::-1]
+    total_matrix = total_matrix[::-1]
+    selected_matrix = selected_matrix[::-1]
+
     fig1 = px.imshow(
         zone_matrix,
         labels=dict(x="좌/우", y="높음/낮음", color=f"{metric} 비율 (%)"),
-        x=['좌', '중', '우'],
-        y=['낮음', '중간', '높음'],
+        x=['좌', '중', '우'],  # X축 이름 유지
+        y=['높음', '중간', '낮음'],  # Y축 순서를 변경
         color_continuous_scale="Reds",
         zmin=zone_matrix.min(),
         zmax=zone_matrix.max()
     )
 
+    # Y축 순서 명시
+    fig1.update_yaxes(
+        categoryarray=['높음', '중간', '낮음'],  # Y축 순서 명시
+        categoryorder='array'
+    )
+
+    # 값 추가
     for i in range(zone_matrix.shape[0]):
         for j in range(zone_matrix.shape[1]):
             percentage = (zone_matrix[i, j] * 100)
@@ -296,7 +318,7 @@ if st.session_state.filter_applied:
         filtered_df['PlateLocHeight'], bins=strike_zone_z_edges, labels=[1, 2, 3, 4, 5]
     ).astype(str)
 
-    metric = st.selectbox("두 번째 분석 지표 선택", ['인플레이 타구', '파울', '스윙중 헛스윙', '히트', '장타', '뜬공', '땅볼'], key='metric_2')
+    metric = st.selectbox("두 번째 분석 지표 선택", ['히트', '장타', '인플레이 타구', '파울', '스윙중 헛스윙', '뜬공', '땅볼'], key='metric_2')
 
     metric = metric_mapping.get(metric, metric)
 
@@ -309,6 +331,10 @@ if st.session_state.filter_applied:
         )
         total_counts = zone_summary.sum(axis=1)
         selected_counts = zone_summary[metric]
+        selected_rate = selected_counts / total_counts
+    elif metric in ['히트', '장타']:
+        total_counts = filtered_df.groupby('Zone').size()
+        selected_counts = filtered_df.groupby('Zone')[metric].sum()
         selected_rate = selected_counts / total_counts
     else:
         total_counts = filtered_df.groupby('Zone').size()
@@ -331,16 +357,28 @@ if st.session_state.filter_applied:
     max_val = np.nanmax(zone_matrix)
     threshold = min_val + (max_val - min_val) * 0.6
 
+    # Y축에 맞게 데이터를 뒤집기
+    zone_matrix = zone_matrix[::-1]
+    total_matrix = total_matrix[::-1]
+    selected_matrix = selected_matrix[::-1]
+
     fig2 = px.imshow(
         zone_matrix,
         labels=dict(x="좌/우", y="높음/낮음", color=f"{metric} 비율 (%)"),
-        x=['좌-외곽', '좌-중간', '중앙', '우-중간', '우-외곽'],
-        y=['아래-외곽', '아래-중간', '중간', '위-중간', '위-외곽'],
+        x=['좌-외곽', '좌-중간', '중앙', '우-중간', '우-외곽'],  # X축 이름 유지
+        y=['위-외곽', '위-중간', '중간', '아래-중간', '아래-외곽'],  # Y축 순서를 변경
         color_continuous_scale="Reds",
         zmin=zone_matrix.min(),
         zmax=zone_matrix.max()
     )
 
+    # Y축 순서 명시
+    fig2.update_yaxes(
+        categoryarray=['위-외곽', '위-중간', '중간', '아래-중간', '아래-외곽'],  # Y축 순서 명시
+        categoryorder='array'
+    )
+
+    # 값 추가
     for i in range(zone_matrix.shape[0]):
         for j in range(zone_matrix.shape[1]):
             percentage = (zone_matrix[i, j] * 100)
@@ -353,6 +391,19 @@ if st.session_state.filter_applied:
                 x=j, y=i, showarrow=False,
                 font=dict(color=text_color, size=12)
             )
+
+    fig2.update_layout(
+        width=800,  # 원하는 폭 (px 단위)
+        height=800  # 원하는 높이 (px 단위)
+    )
+
+    fig2.add_shape(
+        type="rect",
+        x0=0.5, x1=3.5, y0=0.5, y1=3.5,
+        line=dict(color="black", width=3)
+    )
+
+    st.plotly_chart(fig2, use_container_width=True)
 
     fig2.update_layout(
         width=800,  # 원하는 폭 (px 단위)
