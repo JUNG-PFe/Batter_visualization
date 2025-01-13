@@ -78,6 +78,12 @@ if st.session_state.logged_in:
 
     # 페이지 하단 추가 내용
     st.write("---")
+    st.write("---")
+    st.write("1.PTS 데이터 타격 : 존별 결과(e.g. 인플레이%, 헛스윙% 등) , 결과 별 타구 속도 및 각도 확인")
+    st.write("2.호크아이 분석 23-24 : 기본 분석값, 타구 Spray chart, 컨택 포인트, 타구 속도와 각도 확인")
+    st.write("3.호크아이 선수 비교 타격 : 선수 간, 기간 간 Spray chart 컨택 포인트 비교")
+    st.write("4.호크아이 존별 데이터분석 : 스트라이크 존 안 존별, 볼 구역 포함 존별 결과 비율 확인")
+    
     
 else:
     st.markdown(
