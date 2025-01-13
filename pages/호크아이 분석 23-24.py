@@ -134,7 +134,7 @@ col9, col10 = st.columns(2)
 with col9:
     min_speed = st.number_input("구속 최저 (km/h)", min_value=0, max_value=200, value=100)
 with col10:
-    max_speed = st.number_input("구속 최고 (km/h)", min_value=0, max_value=200, value=150)
+    max_speed = st.number_input("구속 최고 (km/h)", min_value=0, max_value=200, value=160)
 
 def create_strike_zone_image(resize_width=300, resize_height=400):
     # 실제 스트라이크 존 경계선 값
@@ -318,15 +318,15 @@ if st.session_state.filter_applied:
 
         def generate_outfield_curve():
             # 외야 끝점 좌표 설정
-            left_corner = [-75, 75]
-            center = [0, 120]
-            right_corner = [75, 75]
+            left_corner = [-73, 73]
+            center = [0, 125]
+            right_corner = [73, 73]
 
             # Bézier 곡선을 생성하기 위한 파라미터 t
             t = np.linspace(0, 1, 100)  # 부드러운 곡선을 위해 100개의 점 생성
 
-            control_left = [-50, 130]  # 왼쪽 보조 제어점
-            control_right = [50, 130]  # 오른쪽 보조 제어점
+            control_left = [-50, 135]  # 왼쪽 보조 제어점
+            control_right = [50, 135]  # 오른쪽 보조 제어점
 
             # Bézier 곡선의 x, y 좌표 계산 (4개의 점 사용)
             x_curve = (
@@ -377,15 +377,15 @@ if st.session_state.filter_applied:
 
         # 곡선 양 끝점에서 홈으로 연결하는 직선 추가
         fig.add_trace(go.Scatter(
-            x=[-75, 0],  # 왼쪽 끝점 -> 홈
-            y=[75, 0],
+            x=[-73, 0],  # 왼쪽 끝점 -> 홈
+            y=[73, 0],
             mode='lines',
             line=dict(color='black', width=2),
             showlegend=False  # 범례 숨김
         ))
         fig.add_trace(go.Scatter(
-            x=[75, 0],  # 오른쪽 끝점 -> 홈
-            y=[75, 0],
+            x=[73, 0],  # 오른쪽 끝점 -> 홈
+            y=[73, 0],
             mode='lines',
             line=dict(color='black', width=2),
             showlegend=False  # 범례 숨김
