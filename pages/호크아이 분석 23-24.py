@@ -408,9 +408,16 @@ if st.session_state.filter_applied:
                 y=subset['hit_Y'],
                 mode='markers',
                 marker=dict(color=hit_color_mapping[result], size=8, opacity=0.8),
-                name=result
+                name=result,
+                hovertemplate=(
+                    "<b>타격결과:</b> %{text}<br>"
+                    "<b>X:</b> %{x}<br>"
+                    "<b>Y:</b> %{y}<br>"
+                    "<b>Date:</b> %{customdata}<extra></extra>"
+                ),
+                text=subset['타격결과'],  # 타격결과를 텍스트로 추가
+                customdata=subset['Date'].dt.strftime('%Y-%m-%d')  # Date를 포맷팅하여 추가
             ))
-
         # 그래프 레이아웃 설정
         fig.update_layout(
             title="Spray Chart",
@@ -443,11 +450,114 @@ if st.session_state.filter_applied:
         "파울": "gray"
     }
 
-    # 플레이트 좌표 설정 (변환 없이 그대로 사용)
-    plate_x = [-21.59, -21.59, 0, 21.59, 21.59]
-    plate_z = [43.18, 21.59, 0, 21.59, 43.18]
+    
+
+    # 플레이트 좌표 설정 (3D, 점 10개)
+    plate_x = [0, 0, -21.59, -21.59, -21.59, -21.59, 21.59, 21.59, 21.59, 21.59]  # X축
+    plate_y = [0, 0, 21.59, 21.59, 43.18, 43.18, 21.59, 21.59, 43.18, 43.18]      # Y축
+    plate_z = [46, 104, 46, 104, 46, 104, 46, 104, 46, 104]                       # Z축
+
+    # 밑면 점 순서 재정렬 (Z=46)
+    bottom_x = [0, -21.59, -21.59, 21.59, 21.59, 0]
+    bottom_y = [0, 21.59, 43.18, 43.18, 21.59, 0]
+    bottom_z = [46, 46, 46, 46, 46, 46]
+
+    # 윗면 점 순서 재정렬 (Z=104)
+    top_x = [0, -21.59, -21.59, 21.59, 21.59, 0]
+    top_y = [0, 21.59, 43.18, 43.18, 21.59, 0]
+    top_z = [104, 104, 104, 104, 104, 104]
+
+    if not filtered_hits.empty:
+        selected_hit_types_xyz = st.multiselect(
+            "3D 컨택 포인트 표시할 타격 결과 선택",
+            list(hit_color_mapping.keys()),
+            default=list(hit_color_mapping.keys()),  # 기본값으로 모든 결과 선택
+            key="xyz_hit_selection"
+        )
+
+        # 선택된 타격결과만 필터링
+        filtered_hits_xyz = filtered_hits[filtered_hits['타격결과'].isin(selected_hit_types_xyz)]
+
+        if not filtered_hits_xyz.empty:
+            fig_xyz = go.Figure()
+
+            # 타격 데이터 추가
+            for result in selected_hit_types_xyz:
+                subset = filtered_hits_xyz[filtered_hits_xyz['타격결과'] == result]
+                fig_xyz.add_trace(go.Scatter3d(
+                    x=subset['ContactPositionZ'] * 100,  # ContactPositionZ: 가로 (X축)
+                    y=subset['ContactPositionX'] * 100,  # ContactPositionX: 세로 (Y축)
+                    z=subset['ContactPositionY'] * 100,  # ContactPositionY: 높이 (Z축)
+                    mode='markers',
+                    marker=dict(color=hit_color_mapping[result], size=4, opacity=0.8),
+                    name=result,
+                    hovertemplate=(
+                        "<b>타격결과:</b> %{text}<br>"
+                        "<b>Z(가로):</b> %{x}<br>"
+                        "<b>X(세로):</b> %{y}<br>"
+                        "<b>Y(높이):</b> %{z}<br>"
+                        "<b>Date:</b> %{customdata}<extra></extra>"
+                    ),
+                    text=subset['타격결과'],
+                    customdata=subset['Date'].dt.strftime('%Y-%m-%d')
+                ))
+
+            # 밑면 오각형 (Z=46)
+            fig_xyz.add_trace(go.Scatter3d(
+                x=bottom_x,
+                y=bottom_y,
+                z=bottom_z,
+                mode='lines',
+                line=dict(color='black', width=3),  # 검정색 선
+                name="strike zone"
+            ))
+
+            # 윗면 오각형 (Z=104)
+            fig_xyz.add_trace(go.Scatter3d(
+                x=top_x,
+                y=top_y,
+                z=top_z,
+                mode='lines',
+                line=dict(color='black', width=3),  # 검정색 선
+                showlegend=False
+            ))
+
+            # 밑면과 윗면을 연결하는 세로선
+            for i in range(5):  # 닫힌 오각형이므로 5개의 세로선만 필요
+                fig_xyz.add_trace(go.Scatter3d(
+                    x=[bottom_x[i], top_x[i]],
+                    y=[bottom_y[i], top_y[i]],
+                    z=[bottom_z[i], top_z[i]],
+                    mode='lines',
+                    line=dict(color='black', width=3),  # 검정색 세로선
+                    showlegend=False
+                ))
+
+            # 레이아웃 설정
+            fig_xyz.update_layout(
+                title="3D 플레이트와 타격 결과",
+                scene=dict(
+                    xaxis=dict(title="가로 (ContactPositionZ)", range=[-80, 80]),
+                    yaxis=dict(title="세로 (ContactPositionX)", range=[-100, 150]),
+                    zaxis=dict(title="높이 (ContactPositionY)", range=[0, 180]),
+                    aspectmode='manual',  # 비율을 수동으로 설정
+                    aspectratio=dict(x=2, y=2.8, z=2),  # 각 축 비율 조정 (x:y:z)
+                ),
+                showlegend=True,
+                width=800,  # 크기 조정
+                height=800,  # 크기 조정
+                margin=dict(l=50, r=50, t=50, b=50),
+            )
+
+            # Streamlit에 그래프 표시
+            st.plotly_chart(fig_xyz)
+        else:
+            st.warning("3D 시각화: 선택된 타격 결과에 해당하는 데이터가 없습니다.")
 
     col1, col2 = st.columns(2)
+
+    plate_x = [-21.59, -21.59, 0, 21.59, 21.59]
+    plate_z = [43.18, 21.59, 0, 21.59, 43.18]
 
     # X-Z 시각화 (플레이트 포함)
     with col1:
@@ -473,7 +583,15 @@ if st.session_state.filter_applied:
                         y=subset['ContactPositionX'] * 100,  # Y좌표 변환 (ContactPositionX)
                         mode='markers',
                         marker=dict(color=hit_color_mapping[result], size=8, opacity=0.8),
-                        name=result
+                        name=result,
+                        hovertemplate=(
+                            "<b>타격결과:</b> %{text}<br>"
+                            "<b>Z:</b> %{x}<br>"
+                            "<b>X:</b> %{y}<br>"
+                            "<b>Date:</b> %{customdata}<extra></extra>"
+                        ),
+                        text=subset['타격결과'],  # '타격결과'를 툴팁에 추가
+                        customdata=subset['Date'].dt.strftime('%Y-%m-%d')  # 날짜 데이터를 포맷팅하여 추가
                     ))
 
                 # 플레이트 추가 (변환 없이 사용)
@@ -526,8 +644,17 @@ if st.session_state.filter_applied:
                         y=subset['ContactPositionY'] * 100,  # Y좌표 변환
                         mode='markers',
                         marker=dict(color=hit_color_mapping[result], size=8, opacity=0.8),
-                        name=result
+                        name=result,
+                        hovertemplate=(
+                            "<b>타격결과:</b> %{text}<br>"  # 결과 표시
+                            "<b>X:</b> %{x}<br>"  # X값
+                            "<b>Y:</b> %{y}<br>"  # Y값
+                            "<b>Date:</b> %{customdata}<extra></extra>"  # 날짜
+                        ),
+                        text=subset['타격결과'],  # '타격결과'를 표시
+                        customdata=subset['Date'].dt.strftime('%Y-%m-%d')  # 'Date'를 포맷팅하여 표시
                     ))
+
 
                 # 플레이트 상자 추가
                 plate_box_x = [0, 0, 43.18, 43.18, 0]  # X 좌표
@@ -601,7 +728,8 @@ if not filtered_df.empty:
                 'ExitSpeed': '타구 속도',
                 'Angle': '타구 각도'
             },
-            opacity=0.8  # 투명도 설정
+            opacity=0.8,  # 투명도 설정
+            hover_data=['Date'] 
         )
 
         fig_2d.update_traces(marker=dict(size=10)) 
