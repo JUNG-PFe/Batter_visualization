@@ -102,14 +102,21 @@ date_range = st.date_input(
 
 # 타자 이름 필터
 col3, col4 = st.columns(2)
+
 with col3:
     search_query = st.text_input("타자 이름 검색", "").strip()
     if search_query:
         suggestions = [name for name in sorted(df['타자'].unique()) if search_query.lower() in name.lower()]
     else:
         suggestions = sorted(df['타자'].unique())
+
 with col4:
-    batter_name = st.selectbox("타자 이름 선택", ["전체"] + suggestions)
+    # 기본값으로 2번째 항목을 선택 (index=1: '전체'는 index 0, suggestions의 두 번째 항목은 index 1)
+    if len(suggestions) >= 2:
+        batter_name = st.selectbox("타자 이름 선택", ["전체"] + suggestions, index=2)
+    else:
+        batter_name = st.selectbox("타자 이름 선택", ["전체"] + suggestions)
+
 
 # 투수 유형 및 주자 상황 필터
 col5, col6 = st.columns(2)

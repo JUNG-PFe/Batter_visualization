@@ -94,7 +94,13 @@ with tab1:
         else:
             suggestions_1 = sorted(df['타자'].unique())
 
-        pitcher1 = st.selectbox("선수 1 선택", suggestions_1, key="pitcher1") if suggestions_1 else None
+        # suggestions_1의 두 번째 항목을 기본 선택하도록 설정
+        if len(suggestions_1) >= 2:
+            pitcher1 = st.selectbox("선수 1 선택", suggestions_1, index=1, key="pitcher1")
+        elif len(suggestions_1) == 1:
+            pitcher1 = st.selectbox("선수 1 선택", suggestions_1, index=0, key="pitcher1")
+        else:
+            pitcher1 = None
 
     with col2:
         search_query_2 = st.text_input("선수 2 검색", key="search_query_2").strip()
@@ -103,7 +109,13 @@ with tab1:
         else:
             suggestions_2 = sorted(df['타자'].unique())
 
-        pitcher2 = st.selectbox("선수 2 선택", suggestions_2, key="pitcher2") if suggestions_2 else None
+        # suggestions_2의 두 번째 항목을 기본 선택하도록 설정
+        if len(suggestions_2) >= 2:
+            pitcher2 = st.selectbox("선수 2 선택", suggestions_2, index=1, key="pitcher2")
+        elif len(suggestions_2) == 1:
+            pitcher2 = st.selectbox("선수 2 선택", suggestions_2, index=0, key="pitcher2")
+        else:
+            pitcher2 = None
 
     # 구종 선택 및 타격 결과 선택
     col1, col2 = st.columns(2)
@@ -383,7 +395,11 @@ with tab2:
         filtered_suggestions = sorted(df['타자'].unique())
 
     if filtered_suggestions:
-        pitcher_name = st.selectbox("타자 이름 선택", filtered_suggestions, key="pitcher_search")
+        # 리스트에 2개 이상의 항목이 있을 경우 두 번째 항목을 선택, 하나일 경우 첫 번째 선택
+        if len(filtered_suggestions) >= 2:
+            pitcher_name = st.selectbox("타자 이름 선택", filtered_suggestions, index=1, key="pitcher_search")
+        else:
+            pitcher_name = st.selectbox("타자 이름 선택", filtered_suggestions, index=0, key="pitcher_search")
     else:
         st.warning("검색된 선수가 없습니다.")
         pitcher_name = None
