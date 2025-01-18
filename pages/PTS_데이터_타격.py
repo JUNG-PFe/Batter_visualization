@@ -217,7 +217,26 @@ if st.session_state.filter_applied:
     metric_mapping = {'인플레이 타구': 'H', '파울': 'F', '스윙중 헛스윙': 'S'}
     metric = metric_mapping.get(metric, metric)
 
+    # '히트', '장타', '땅볼', '뜬공' 정의
+    if metric == '히트':
+        filtered_df['히트'] = filtered_df['Result'].apply(
+            lambda x: x in ['안타', '2루타', '3루타', '홈런']
+        )
+    elif metric == '장타':
+        filtered_df['장타'] = filtered_df['Result'].apply(
+            lambda x: x in ['2루타', '3루타', '홈런']
+        )
+    elif metric == '땅볼':
+        filtered_df['땅볼'] = filtered_df['Result'].apply(
+            lambda x: x == '땅볼'
+        )
+    elif metric == '뜬공':
+        filtered_df['뜬공'] = filtered_df['Result'].apply(
+            lambda x: x == '뜬공'
+        )
+
     if metric in ['H', 'F', 'S']:
+        # 'PitchCall' 데이터를 사용하는 경우
         zone_summary = (
             filtered_df.groupby('Zone')['PitchCall']
             .value_counts(normalize=True)
@@ -225,23 +244,29 @@ if st.session_state.filter_applied:
         )
         zone_summary = zone_summary.reindex(columns=['F', 'H', 'S'], fill_value=0)
         selected_rate = zone_summary[metric]
-    elif metric in ['히트', '장타']:
+    elif metric in ['히트', '장타', '땅볼', '뜬공']:
+        # '히트', '장타', '땅볼', '뜬공' 비율 계산
         selected_rate = filtered_df.groupby('Zone')[metric].mean()
     else:
+        # 'Result' 데이터를 사용하는 경우
         selected_rate = (
             filtered_df.groupby('Zone')['Result']
             .apply(lambda x: (x == metric).mean())
         )
 
+    # Zone별 전체 Pitch 수
     zone_counts = filtered_df.groupby('Zone')['PitchCall'].size()
-    zone_success = (
-        filtered_df.groupby('Zone')['PitchCall'].apply(lambda x: (x == metric).sum())
-        if metric in ['H', 'F', 'S'] else
-        filtered_df.groupby('Zone')[metric].sum()
-    )
+
+    # Zone별 성공 횟수 계산
+    if metric in ['H', 'F', 'S']:
+        zone_success = filtered_df.groupby('Zone')['PitchCall'].apply(lambda x: (x == metric).sum())
+    elif metric in ['히트', '장타', '땅볼', '뜬공']:
+        zone_success = filtered_df.groupby('Zone')[metric].sum()
+    else:
+        zone_success = filtered_df.groupby('Zone')['Result'].apply(lambda x: (x == metric).sum())
 
     # Zone 값이 누락된 경우 0으로 채우기
-    zone_labels = ['33', '32', '31', '23', '22', '21', '13', '12', '11']  # 순서 조정
+    zone_labels = ['33', '32', '31', '23', '22', '21', '13', '12', '11']
     selected_rate = selected_rate.reindex(zone_labels, fill_value=0)
     zone_counts = zone_counts.reindex(zone_labels, fill_value=0)
     zone_success = zone_success.reindex(zone_labels, fill_value=0)
