@@ -1,7 +1,11 @@
 streamlit
+numpy
 pandas
 matplotlib
 plotly
 requests
 openpyxl
 xlsxwriter
+Pillow
+Image
+ImageDraw
